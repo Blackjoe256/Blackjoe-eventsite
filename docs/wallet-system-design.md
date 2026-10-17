@@ -82,6 +82,18 @@ without rewriting the wallet.
 
 ## 5. Data model (PostgreSQL)
 
+> **Implemented:** the ledger part of this model lives in `src/ledger/` (schema in
+> `src/ledger/schema.ts`). It differs from the sketch below in two ways:
+> - The cached balance is a column on `ledger_accounts`, guarded by
+>   `CHECK (allow_negative OR balance >= 0)`, instead of a separate
+>   `account_balances` table.
+> - Account kinds are currency-agnostic (`provider_clearing`, `treasury`) and
+>   the currency is a column.
+>
+> The database also enforces balanced transactions (a deferred trigger),
+> append-only history, and entry currency matching account currency (a
+> composite foreign key).
+
 ```sql
 -- Who
 CREATE TABLE users (
