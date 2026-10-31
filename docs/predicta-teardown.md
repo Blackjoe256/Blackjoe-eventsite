@@ -96,3 +96,42 @@ for the market list; fix the timed-out fetch; add DB indexes and eager loading o
 `/v1/markets` plus a Redis cache; restore immutable caching for static assets; load
 ad pixels after interaction (`next/script strategy="lazyOnload"`); deploy closer to
 African users or put a CDN in front.
+
+## Tracking (measured on a fresh, logged-out visit)
+
+**No cookie consent banner.** Trackers load on the first page view; there are only
+links to `/privacy` and `/cookie-policy` in the footer.
+
+After ~14 s on the homepage the browser held **50 cookies** across ~25 companies and
+had sent **75 requests** to third parties. Most cookies last a year (`_ga` 400 days,
+`_ttp` 390 days, `__adroll` 395 days).
+
+| Tool | What it does here |
+|---|---|
+| **PostHog** (product analytics) | Autocapture of every click, heatmaps, network timing, web vitals, JS errors, and **session recording** (`posthog-recorder.js`, `consoleLogRecordingEnabled: true`, no masking config set) |
+| **Google Analytics 4 + Tag Manager** | Page views; GTM `dataLayer` gets `USER_SIGNED_UP` with the user's **email**, account type and referral code; Google Ads conversion on token purchase |
+| **AdRoll** (retargeting) | Drops a cookie, then fires a **cookie-sync chain**: ~40 requests that pass your AdRoll ID to ad exchanges and data brokers (The Trade Desk, PubMatic, Rubicon/Magnite, OpenX, Index Exchange, TripleLift, Tapad, LiveRamp/rlcdn, Eyeota, Experian, Bombora, Outbrain, Taboola…) |
+| **TikTok pixel** | `Pageview`, `LandingPageView`, `EngagedSession` events; loads TikTok's `identify` module and an IPv6 enrichment call |
+| **Meta (Facebook) pixel** | `fbevents.js` loaded (pixel ID left empty in config) |
+| **LinkedIn Insight** | `db_sync` cookie syncing |
+| **X (Twitter) Ads pixel** (code present) | On every **trade** it would send amount, market title, `trade_<id>` and the user's **email**; same for market creation and registration. It didn't load during the logged-out capture |
+| **Sentry** | Error monitoring |
+| **Chatwoot** | Support chat; on login gets email, name, avatar and **phone number** |
+
+### What happens when you log in
+`posthog.identify(account_id, {...})` attaches your **email, full name, first/last
+name, phone number, country, currency, account type and referral code** to your
+PostHog profile. It also `alias`es your earlier anonymous ID, so the pre-signup
+browsing and recordings are joined to your real identity.
+
+Bug: their `signup_date` property is filled from `date_of_birth`, so your **date of
+birth** goes to PostHog under the wrong label.
+
+### Why it matters
+- Kenya's Data Protection Act 2019 and Nigeria's NDPA 2023 expect a lawful basis
+  (typically consent) before non-essential tracking and before sharing personal data
+  with third parties. Ad-exchange cookie sync on the first visit, with no prompt, is
+  the pattern regulators target.
+- Financial-style apps normally mask session recordings, because recorders capture
+  what's on screen (balances, trades, and inputs unless masked).
+- It's also part of why the site is slow (see above).
